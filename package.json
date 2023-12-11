@@ -1,0 +1,13 @@
+{
+  "name": "flow",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "emulator": "flow emulator",
+    "deploy": "flow project deploy --network=emulator",
+    "update": "flow project deploy --network=emulator --update",
+    "createAccount": "flow accounts create --key 2b4befc2504c1c89e53ef15d743abde0bf2c6aafad57aad27f30a321f88bd17a93737f0beb04b7650fee0c9242a3110b62631bbb7607e210673a0cceb8d59c77",
+    "test-tobiratory-digital-items": "./cadence/tests/tobiratoryDigitalItems/test.sh"
+  }
+}
