@@ -7,7 +7,6 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
     pub var totalSupply: UInt64
     pub var itemTotalSupply: UInt64
     pub var itemReviewEnabled: Bool
-    pub var nftCollectionDisplay: MetadataViews.NFTCollectionDisplay
     pub var baseExternalURL: String
 
     pub event ContractInitialized()
@@ -172,7 +171,22 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
                         })
                     )
                 case Type<MetadataViews.NFTCollectionDisplay>():
-                    return TobiratoryDigitalItems.nftCollectionDisplay
+                    return MetadataViews.NFTCollectionDisplay(
+                        name: "Tobiratory Digital Items",
+                        description: "Tobiratory is a service that issues digital items as NFTs, allowing users to create, collect and decorate them.",
+                        externalURL: MetadataViews.ExternalURL("https://www.tobiratory.com"),
+                        squareImage: MetadataViews.Media(
+                            file: MetadataViews.HTTPFile(url: ""),
+                            mediaType: "image/png"
+                        ),
+                        bannerImage: MetadataViews.Media(
+                            file: MetadataViews.HTTPFile(url: ""),
+                            mediaType: "image/png"
+                        ),
+                        socials: {
+                            "twitter": MetadataViews.ExternalURL("https://twitter.com/Tobiratory")
+                        }
+                    )
                 case Type<MetadataViews.Traits>():
                     let traits = MetadataViews.Traits([
                         MetadataViews.Trait(name: "name", value: itemRef.name, displayType: nil, rarity: nil),
@@ -518,10 +532,6 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
             TobiratoryDigitalItems.itemReviewEnabled = itemReviewEnabled
         }
 
-        pub fun setNFTCollectionDisplay(nftCollectionDisplay: MetadataViews.NFTCollectionDisplay) {
-            TobiratoryDigitalItems.nftCollectionDisplay = nftCollectionDisplay
-        }
-
         pub fun setBaseExternalURL(baseExternalURL: String) {
             TobiratoryDigitalItems.baseExternalURL = baseExternalURL
         }
@@ -566,7 +576,22 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
                     })
                 )
             case Type<MetadataViews.NFTCollectionDisplay>():
-                return TobiratoryDigitalItems.nftCollectionDisplay
+                return MetadataViews.NFTCollectionDisplay(
+                    name: "Tobiratory Digital Items",
+                    description: "Tobiratory is a service that issues digital items as NFTs, allowing users to create, collect and decorate them.",
+                    externalURL: MetadataViews.ExternalURL("https://www.tobiratory.com"),
+                    squareImage: MetadataViews.Media(
+                        file: MetadataViews.HTTPFile(url: ""),
+                        mediaType: "image/png"
+                    ),
+                    bannerImage: MetadataViews.Media(
+                        file: MetadataViews.HTTPFile(url: ""),
+                        mediaType: "image/png"
+                    ),
+                    socials: {
+                        "twitter": MetadataViews.ExternalURL("https://twitter.com/Tobiratory")
+                    }
+                )
         }
         return nil
     }
@@ -582,22 +607,6 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
         self.totalSupply = 0
         self.itemTotalSupply = 0
         self.itemReviewEnabled = true
-        self.nftCollectionDisplay = MetadataViews.NFTCollectionDisplay(
-            name: "Tobiratory Digital Items",
-            description: "",
-            externalURL: MetadataViews.ExternalURL("https://www.tobiratory.com"),
-            squareImage: MetadataViews.Media(
-                file: MetadataViews.HTTPFile(url: ""),
-                mediaType: "image/png"
-            ),
-            bannerImage: MetadataViews.Media(
-                file: MetadataViews.HTTPFile(url: ""),
-                mediaType: "image/png"
-            ),
-            socials: {
-                "twitter": MetadataViews.ExternalURL("https://twitter.com/Tobiratory")
-            }
-        )
         self.baseExternalURL = "https://www.tobiratory.com/?item="
 
         self.CollectionStoragePath = /storage/TobiratoryDigitalItemsCollection
