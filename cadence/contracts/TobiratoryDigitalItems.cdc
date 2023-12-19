@@ -159,34 +159,9 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
                 case Type<MetadataViews.ExternalURL>():
                     return MetadataViews.ExternalURL("https://www.tobiratory.com/?item=".concat(self.id.toString()))
                 case Type<MetadataViews.NFTCollectionData>():
-                    return MetadataViews.NFTCollectionData(
-                        storagePath: TobiratoryDigitalItems.CollectionStoragePath,
-                        publicPath: TobiratoryDigitalItems.CollectionPublicPath,
-                        providerPath: /private/TobiratoryDigitalItemsCollection,
-                        publicCollection: Type<&TobiratoryDigitalItems.Collection{TobiratoryDigitalItems.CollectionPublic}>(),
-                        publicLinkedType: Type<&TobiratoryDigitalItems.Collection{TobiratoryDigitalItems.CollectionPublic,NonFungibleToken.CollectionPublic,NonFungibleToken.Receiver,MetadataViews.ResolverCollection}>(),
-                        providerLinkedType: Type<&TobiratoryDigitalItems.Collection{TobiratoryDigitalItems.CollectionPublic,NonFungibleToken.CollectionPublic,NonFungibleToken.Provider,MetadataViews.ResolverCollection}>(),
-                        createEmptyCollectionFunction: (fun (): @NonFungibleToken.Collection {
-                            return <-TobiratoryDigitalItems.createEmptyCollection()
-                        })
-                    )
+                    return TobiratoryDigitalItems.resolveView(view)
                 case Type<MetadataViews.NFTCollectionDisplay>():
-                    return MetadataViews.NFTCollectionDisplay(
-                        name: "Tobiratory Digital Items",
-                        description: "Tobiratory is a service that issues digital items as NFTs, allowing users to create, collect and decorate them.",
-                        externalURL: MetadataViews.ExternalURL("https://www.tobiratory.com"),
-                        squareImage: MetadataViews.Media(
-                            file: MetadataViews.HTTPFile(url: ""),
-                            mediaType: "image/png"
-                        ),
-                        bannerImage: MetadataViews.Media(
-                            file: MetadataViews.HTTPFile(url: ""),
-                            mediaType: "image/png"
-                        ),
-                        socials: {
-                            "twitter": MetadataViews.ExternalURL("https://twitter.com/Tobiratory")
-                        }
-                    )
+                    return TobiratoryDigitalItems.resolveView(view)
                 case Type<MetadataViews.Traits>():
                     let traits = MetadataViews.Traits([
                         MetadataViews.Trait(name: "name", value: itemRef.name, displayType: nil, rarity: nil),
