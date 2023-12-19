@@ -29,7 +29,7 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
     pub resource NFT: NonFungibleToken.INFT, MetadataViews.Resolver {
         pub let id: UInt64
         pub let itemID: UInt64
-        pub let itemsCapability: Capability<&{ItemsPublic}>
+        pub let itemsCapability: Capability<&Items{ItemsPublic}>
         pub let serialNumber: UInt32
         pub let purchasePrice: UFix64
         pub let purchasePriceCurrency: String
@@ -41,7 +41,7 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
 
         init(
             itemID: UInt64,
-            itemsCapability: Capability<&{ItemsPublic}>,
+            itemsCapability: Capability<&Items{ItemsPublic}>,
             serialNumber: UInt32,
             purchasePrice: UFix64,
             purchasePriceCurrency: String,
@@ -333,7 +333,7 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
             itemRef.incrementMintedCount()
             return <- create NFT(
                 itemID: itemID,
-                itemsCapability: self.owner!.getCapability<&{ItemsPublic}>(TobiratoryDigitalItems.ItemsPublicPath),
+                itemsCapability: self.owner!.getCapability<&Items{ItemsPublic}>(TobiratoryDigitalItems.ItemsPublicPath),
                 serialNumber: itemRef.mintedCount,
                 purchasePrice: purchasePrice,
                 purchasePriceCurrency: purchasePriceCurrency,
@@ -599,7 +599,7 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
         )
 
         self.account.save(<- create Items(), to: self.ItemsStoragePath)
-        self.account.link<&{TobiratoryDigitalItems.ItemsPublic}>(
+        self.account.link<&TobiratoryDigitalItems.Items{TobiratoryDigitalItems.ItemsPublic}>(
             self.ItemsPublicPath,
             target: self.ItemsStoragePath
         )

@@ -11,7 +11,7 @@ transaction(
     regularPriceCurrency: String,
 ) {
     let receiverRef: &{NonFungibleToken.Receiver}
-    let itemsRef: &{TobiratoryDigitalItems.ItemsPublic}
+    let itemsRef: &TobiratoryDigitalItems.Items{TobiratoryDigitalItems.ItemsPublic}
     let minterRef: &TobiratoryDigitalItems.Minter
 
     prepare(user: AuthAccount, minter: AuthAccount) {
@@ -24,7 +24,7 @@ transaction(
             )
         }
         self.receiverRef = user.getCapability<&{NonFungibleToken.Receiver}>(TobiratoryDigitalItems.CollectionPublicPath).borrow()!
-        self.itemsRef = getAccount(itemCreatorAddress).getCapability<&{TobiratoryDigitalItems.ItemsPublic}>(TobiratoryDigitalItems.ItemsPublicPath).borrow() ?? panic("Not found")
+        self.itemsRef = getAccount(itemCreatorAddress).getCapability<&TobiratoryDigitalItems.Items{TobiratoryDigitalItems.ItemsPublic}>(TobiratoryDigitalItems.ItemsPublicPath).borrow() ?? panic("Not found")
         self.minterRef = minter.borrow<&TobiratoryDigitalItems.Minter>(from: TobiratoryDigitalItems.MinterStoragePath) ?? panic("Not found")
     }
 
