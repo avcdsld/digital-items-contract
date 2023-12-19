@@ -265,16 +265,6 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
         pub fun getItemIDs(): [UInt64]
 
         pub fun borrowItem(itemID: UInt64): &Item?
-
-        pub fun mint(
-            itemID: UInt64,
-            purchasePrice: UFix64,
-            purchasePriceCurrency: String,
-            regularPrice: UFix64,
-            regularPriceCurrency: String,
-            extraMetadata: {String: AnyStruct},
-            minter: &Minter,
-        ): @NFT
     }
 
     pub resource Items: ItemsPublic {
@@ -314,33 +304,6 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
             let id = item.id
             self.items[id] <-! item
             return id
-        }
-
-        pub fun mint(
-            itemID: UInt64,
-            purchasePrice: UFix64,
-            purchasePriceCurrency: String,
-            regularPrice: UFix64,
-            regularPriceCurrency: String,
-            extraMetadata: {String: AnyStruct},
-            minter: &Minter,
-        ): @NFT {
-            pre {
-                minter.ownerAddress == minter.owner!.address: "Invalid minter"
-            }
-            let itemRef: &TobiratoryDigitalItems.Item = self.borrowItem(itemID: itemID) ?? panic("Missing Item")
-            assert(itemRef.limit == nil || itemRef.mintedCount < itemRef.limit!, message: "Limit over")
-            itemRef.incrementMintedCount()
-            return <- create NFT(
-                itemID: itemID,
-                itemsCapability: self.owner!.getCapability<&Items{ItemsPublic}>(TobiratoryDigitalItems.ItemsPublicPath),
-                serialNumber: itemRef.mintedCount,
-                purchasePrice: purchasePrice,
-                purchasePriceCurrency: purchasePriceCurrency,
-                regularPrice: regularPrice,
-                regularPriceCurrency: regularPriceCurrency,
-                extraMetadata: extraMetadata,
-            )
         }
 
         pub fun getItemIDs(): [UInt64] {
@@ -530,6 +493,35 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
 
     pub resource Minter {
         pub let ownerAddress: Address
+
+        pub fun mint(
+            itemCreatorAddress: Address,
+            itemID: UInt64,
+            purchasePrice: UFix64,
+            purchasePriceCurrency: String,
+            regularPrice: UFix64,
+            regularPriceCurrency: String,
+            extraMetadata: {String: AnyStruct},
+        ): @NFT {
+            pre {
+                self.ownerAddress == self.owner!.address: "Invalid minter"
+            }
+            let itemsCapability = getAccount(itemCreatorAddress).getCapability<&Items{ItemsPublic}>(TobiratoryDigitalItems.ItemsPublicPath)
+            let itemsRef = itemsCapability.borrow() ?? panic("Not found")
+            let itemRef = itemsRef.borrowItem(itemID: itemID) ?? panic("Missing Item")
+            assert(itemRef.limit == nil || itemRef.mintedCount < itemRef.limit!, message: "Limit over")
+            itemRef.incrementMintedCount()
+            return <- create NFT(
+                itemID: itemID,
+                itemsCapability: itemsCapability,
+                serialNumber: itemRef.mintedCount,
+                purchasePrice: purchasePrice,
+                purchasePriceCurrency: purchasePriceCurrency,
+                regularPrice: regularPrice,
+                regularPriceCurrency: regularPriceCurrency,
+                extraMetadata: extraMetadata,
+            )
+        }
 
         init(ownerAddress: Address) {
             self.ownerAddress = ownerAddress
