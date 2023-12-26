@@ -1,14 +1,12 @@
 import NonFungibleToken from "./core/NonFungibleToken.cdc"
 import MetadataViews from "./core/MetadataViews.cdc"
 import ViewResolver from "./core/ViewResolver.cdc"
-import Crypto
 
 pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
 
     pub var totalSupply: UInt64
     pub var itemTotalSupply: UInt64
     pub var itemReviewEnabled: Bool
-    pub var nftCollectionDisplay: MetadataViews.NFTCollectionDisplay
     pub var baseExternalURL: String
 
     pub event ContractInitialized()
@@ -31,7 +29,7 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
     pub resource NFT: NonFungibleToken.INFT, MetadataViews.Resolver {
         pub let id: UInt64
         pub let itemID: UInt64
-        pub let itemsCapability: Capability<&{ItemsPublic}>
+        pub let itemsCapability: Capability<&Items{ItemsPublic}>
         pub let serialNumber: UInt32
         pub let purchasePrice: UFix64
         pub let purchasePriceCurrency: String
@@ -43,7 +41,7 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
 
         init(
             itemID: UInt64,
-            itemsCapability: Capability<&{ItemsPublic}>,
+            itemsCapability: Capability<&Items{ItemsPublic}>,
             serialNumber: UInt32,
             purchasePrice: UFix64,
             purchasePriceCurrency: String,
@@ -53,7 +51,7 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
         ) {
             pre {
                 itemsCapability.check(): "Invalid itemsCapability"
-                itemsCapability.borrow()!.borrwoItem(itemID: itemID) != nil: "Invalid itemsCapability"
+                itemsCapability.borrow()!.borrowItem(itemID: itemID) != nil: "Invalid itemsCapability"
             }
             TobiratoryDigitalItems.totalSupply = TobiratoryDigitalItems.totalSupply + 1
             let id = TobiratoryDigitalItems.totalSupply
@@ -79,6 +77,8 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
             return self.ownerHistory
         }
 
+        // Note: This function is called when an NFT is deposited into the Collection and records the owner of the NFT, 
+        // but it cannot fully track the history. Users can hide the history of transfers. Please be careful when using this information.
         access(contract) fun recordOwnerHistory() {
             let owner = self.owner?.address
             if owner != nil {
@@ -134,7 +134,7 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
         }
 
         pub fun resolveView(_ view: Type): AnyStruct? {
-            let itemRef = self.itemsCapability.borrow()!.borrwoItem(itemID: self.itemID)!
+            let itemRef = self.itemsCapability.borrow()!.borrowItem(itemID: self.itemID)!
             switch view {
                 case Type<MetadataViews.Display>():
                     return MetadataViews.Display(
@@ -161,19 +161,9 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
                 case Type<MetadataViews.ExternalURL>():
                     return MetadataViews.ExternalURL("https://www.tobiratory.com/?item=".concat(self.id.toString()))
                 case Type<MetadataViews.NFTCollectionData>():
-                    return MetadataViews.NFTCollectionData(
-                        storagePath: TobiratoryDigitalItems.CollectionStoragePath,
-                        publicPath: TobiratoryDigitalItems.CollectionPublicPath,
-                        providerPath: /private/TobiratoryDigitalItemsCollection,
-                        publicCollection: Type<&TobiratoryDigitalItems.Collection{TobiratoryDigitalItems.CollectionPublic}>(),
-                        publicLinkedType: Type<&TobiratoryDigitalItems.Collection{TobiratoryDigitalItems.CollectionPublic,NonFungibleToken.CollectionPublic,NonFungibleToken.Receiver,MetadataViews.ResolverCollection}>(),
-                        providerLinkedType: Type<&TobiratoryDigitalItems.Collection{TobiratoryDigitalItems.CollectionPublic,NonFungibleToken.CollectionPublic,NonFungibleToken.Provider,MetadataViews.ResolverCollection}>(),
-                        createEmptyCollectionFunction: (fun (): @NonFungibleToken.Collection {
-                            return <-TobiratoryDigitalItems.createEmptyCollection()
-                        })
-                    )
+                    return TobiratoryDigitalItems.resolveView(view)
                 case Type<MetadataViews.NFTCollectionDisplay>():
-                    return TobiratoryDigitalItems.nftCollectionDisplay
+                    return TobiratoryDigitalItems.resolveView(view)
                 case Type<MetadataViews.Traits>():
                     let traits = MetadataViews.Traits([
                         MetadataViews.Trait(name: "name", value: itemRef.name, displayType: nil, rarity: nil),
@@ -276,17 +266,7 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
     pub resource interface ItemsPublic {
         pub fun getItemIDs(): [UInt64]
 
-        pub fun borrwoItem(itemID: UInt64): &Item?
-
-        pub fun mint(
-            itemID: UInt64,
-            purchasePrice: UFix64,
-            purchasePriceCurrency: String,
-            regularPrice: UFix64,
-            regularPriceCurrency: String,
-            extraMetadata: {String: AnyStruct},
-            minter: &Minter,
-        ): @NFT
+        pub fun borrowItem(itemID: UInt64): &Item?
     }
 
     pub resource Items: ItemsPublic {
@@ -328,38 +308,11 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
             return id
         }
 
-        pub fun mint(
-            itemID: UInt64,
-            purchasePrice: UFix64,
-            purchasePriceCurrency: String,
-            regularPrice: UFix64,
-            regularPriceCurrency: String,
-            extraMetadata: {String: AnyStruct},
-            minter: &Minter,
-        ): @NFT {
-            pre {
-                minter.ownerAddress == minter.owner!.address: "Invalid minter"
-            }
-            let itemRef: &TobiratoryDigitalItems.Item = self.borrwoItem(itemID: itemID) ?? panic("Missing Item")
-            assert(itemRef.limit == nil || itemRef.mintedCount < itemRef.limit!, message: "Limit over")
-            itemRef.incrementMintedCount()
-            return <- create NFT(
-                itemID: itemID,
-                itemsCapability: self.owner!.getCapability<&{ItemsPublic}>(TobiratoryDigitalItems.ItemsPublicPath),
-                serialNumber: itemRef.mintedCount,
-                purchasePrice: purchasePrice,
-                purchasePriceCurrency: purchasePriceCurrency,
-                regularPrice: regularPrice,
-                regularPriceCurrency: regularPriceCurrency,
-                extraMetadata: extraMetadata,
-            )
-        }
-
         pub fun getItemIDs(): [UInt64] {
             return self.items.keys
         }
 
-        pub fun borrwoItem(itemID: UInt64): &Item? {
+        pub fun borrowItem(itemID: UInt64): &Item? {
             return &self.items[itemID] as &Item?
         }
 
@@ -367,7 +320,7 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
             pre {
                 self.validateItemReviewer(itemReviewer): "Invalid itemReviewer"
             }
-            let itemRef = self.borrwoItem(itemID: itemID)!
+            let itemRef = self.borrowItem(itemID: itemID)!
             itemRef.updateName(name: name)
         }
 
@@ -375,7 +328,7 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
             pre {
                 self.validateItemReviewer(itemReviewer): "Invalid itemReviewer"
             }
-            let itemRef = self.borrwoItem(itemID: itemID)!
+            let itemRef = self.borrowItem(itemID: itemID)!
             itemRef.updateDescription(description: description)
         }
 
@@ -383,7 +336,7 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
             pre {
                 self.validateItemReviewer(itemReviewer): "Invalid itemReviewer"
             }
-            let itemRef = self.borrwoItem(itemID: itemID)!
+            let itemRef = self.borrowItem(itemID: itemID)!
             itemRef.updateImageUrls(imageUrls: imageUrls)
         }
 
@@ -391,7 +344,7 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
             pre {
                 self.validateItemReviewer(itemReviewer): "Invalid itemReviewer"
             }
-            let itemRef = self.borrwoItem(itemID: itemID)!
+            let itemRef = self.borrowItem(itemID: itemID)!
             itemRef.updateCreatorName(creatorName: creatorName)
         }
 
@@ -399,7 +352,7 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
             pre {
                 self.validateItemReviewer(itemReviewer): "Invalid itemReviewer"
             }
-            let itemRef = self.borrwoItem(itemID: itemID)!
+            let itemRef = self.borrowItem(itemID: itemID)!
             itemRef.updateRoyalties(royalties: royalties)
         }
 
@@ -407,7 +360,7 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
             pre {
                 self.validateItemReviewer(itemReviewer): "Invalid itemReviewer"
             }
-            let itemRef = self.borrwoItem(itemID: itemID)!
+            let itemRef = self.borrowItem(itemID: itemID)!
             itemRef.updateLimit(limit: limit)
         }
 
@@ -415,7 +368,7 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
             pre {
                 self.validateItemReviewer(itemReviewer): "Invalid itemReviewer"
             }
-            let itemRef = self.borrwoItem(itemID: itemID)!
+            let itemRef = self.borrowItem(itemID: itemID)!
             itemRef.updateExtraMetadata(extraMetadata: extraMetadata)
         }
 
@@ -519,10 +472,6 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
             TobiratoryDigitalItems.itemReviewEnabled = itemReviewEnabled
         }
 
-        pub fun setNFTCollectionDisplay(nftCollectionDisplay: MetadataViews.NFTCollectionDisplay) {
-            TobiratoryDigitalItems.nftCollectionDisplay = nftCollectionDisplay
-        }
-
         pub fun setBaseExternalURL(baseExternalURL: String) {
             TobiratoryDigitalItems.baseExternalURL = baseExternalURL
         }
@@ -547,6 +496,35 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
     pub resource Minter {
         pub let ownerAddress: Address
 
+        pub fun mint(
+            itemCreatorAddress: Address,
+            itemID: UInt64,
+            purchasePrice: UFix64,
+            purchasePriceCurrency: String,
+            regularPrice: UFix64,
+            regularPriceCurrency: String,
+            extraMetadata: {String: AnyStruct},
+        ): @NFT {
+            pre {
+                self.ownerAddress == self.owner!.address: "Invalid minter"
+            }
+            let itemsCapability = getAccount(itemCreatorAddress).getCapability<&Items{ItemsPublic}>(TobiratoryDigitalItems.ItemsPublicPath)
+            let itemsRef = itemsCapability.borrow() ?? panic("Not found")
+            let itemRef = itemsRef.borrowItem(itemID: itemID) ?? panic("Missing Item")
+            assert(itemRef.limit == nil || itemRef.mintedCount < itemRef.limit!, message: "Limit over")
+            itemRef.incrementMintedCount()
+            return <- create NFT(
+                itemID: itemID,
+                itemsCapability: itemsCapability,
+                serialNumber: itemRef.mintedCount,
+                purchasePrice: purchasePrice,
+                purchasePriceCurrency: purchasePriceCurrency,
+                regularPrice: regularPrice,
+                regularPriceCurrency: regularPriceCurrency,
+                extraMetadata: extraMetadata,
+            )
+        }
+
         init(ownerAddress: Address) {
             self.ownerAddress = ownerAddress
         }
@@ -567,7 +545,22 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
                     })
                 )
             case Type<MetadataViews.NFTCollectionDisplay>():
-                return TobiratoryDigitalItems.nftCollectionDisplay
+                return MetadataViews.NFTCollectionDisplay(
+                    name: "Tobiratory Digital Items",
+                    description: "Tobiratory is a service that issues digital items as NFTs, allowing users to create, collect and decorate them.",
+                    externalURL: MetadataViews.ExternalURL("https://www.tobiratory.com"),
+                    squareImage: MetadataViews.Media(
+                        file: MetadataViews.HTTPFile(url: ""),
+                        mediaType: "image/png"
+                    ),
+                    bannerImage: MetadataViews.Media(
+                        file: MetadataViews.HTTPFile(url: ""),
+                        mediaType: "image/png"
+                    ),
+                    socials: {
+                        "twitter": MetadataViews.ExternalURL("https://twitter.com/Tobiratory")
+                    }
+                )
         }
         return nil
     }
@@ -583,22 +576,6 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
         self.totalSupply = 0
         self.itemTotalSupply = 0
         self.itemReviewEnabled = true
-        self.nftCollectionDisplay = MetadataViews.NFTCollectionDisplay(
-            name: "Tobiratory Digital Items",
-            description: "",
-            externalURL: MetadataViews.ExternalURL("https://www.tobiratory.com"),
-            squareImage: MetadataViews.Media(
-                file: MetadataViews.HTTPFile(url: ""),
-                mediaType: "image/png"
-            ),
-            bannerImage: MetadataViews.Media(
-                file: MetadataViews.HTTPFile(url: ""),
-                mediaType: "image/png"
-            ),
-            socials: {
-                "twitter": MetadataViews.ExternalURL("https://twitter.com/Tobiratory")
-            }
-        )
         self.baseExternalURL = "https://www.tobiratory.com/?item="
 
         self.CollectionStoragePath = /storage/TobiratoryDigitalItemsCollection
@@ -616,7 +593,7 @@ pub contract TobiratoryDigitalItems: NonFungibleToken, ViewResolver {
         )
 
         self.account.save(<- create Items(), to: self.ItemsStoragePath)
-        self.account.link<&{TobiratoryDigitalItems.ItemsPublic}>(
+        self.account.link<&TobiratoryDigitalItems.Items{TobiratoryDigitalItems.ItemsPublic}>(
             self.ItemsPublicPath,
             target: self.ItemsStoragePath
         )
